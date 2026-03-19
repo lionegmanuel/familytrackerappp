@@ -1,7 +1,7 @@
 // firebase-config.js es generado en build time por generate-config.js
 // Nunca existe en el repositorio — solo en el servidor de Netlify durante el deploy.
 // Para desarrollo local: copiá firebase-config.example.js → firebase-config.js y completá.
-import { firebaseConfig } from "./firebase-config.js";
+import { firebaseConfig } from "../../firebase-config.js";
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
