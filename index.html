@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+    <title>FamilyTrack</title>
+    <meta name="description" content="Ubicación familiar en tiempo real" />
+    <meta name="theme-color" content="#0a0e1a" />
+    <link rel="manifest" href="manifest.json" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- ── PANTALLA: LOGIN ── -->
+    <div id="screen-login" class="screen active">
+      <div class="login-bg-glow"></div>
+      <div class="login-card">
+        <div class="brand">
+          <svg class="brand-icon" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="17" stroke="url(#g1)" stroke-width="2" />
+            <path
+              d="M18 8C13.03 8 9 12.03 9 17c0 6.75 9 17 9 17s9-10.25 9-17c0-4.97-4.03-9-9-9zm0 12.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"
+              fill="url(#g2)"
+            />
+            <defs>
+              <linearGradient id="g1" x1="0" y1="0" x2="36" y2="36">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#0ea5e9" />
+              </linearGradient>
+              <linearGradient id="g2" x1="9" y1="8" x2="27" y2="34">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#7dd3fc" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="brand-name">FamilyTrack</span>
+        </div>
+
+        <h1>Bienvenido</h1>
+        <p class="login-sub">Iniciá sesión para ver y compartir tu ubicación</p>
+
+        <div id="login-error" class="alert-error" style="display: none"></div>
+
+        <div class="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            id="inp-email"
+            placeholder="tu@email.com"
+            autocomplete="email"
+          />
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input
+            type="password"
+            id="inp-pass"
+            placeholder="••••••••"
+            autocomplete="current-password"
+          />
+        </div>
+
+        <button class="btn-main" id="btn-login">Iniciar sesión</button>
+        <button class="btn-ghost" id="btn-show-register">
+          ¿Primera vez? Crear cuenta
+        </button>
+      </div>
+    </div>
+
+    <!-- ── PANTALLA: REGISTRO ── -->
+    <div id="screen-register" class="screen">
+      <div class="login-bg-glow"></div>
+      <div class="login-card">
+        <div class="brand">
+          <svg class="brand-icon" viewBox="0 0 36 36" fill="none">
+            <circle cx="18" cy="18" r="17" stroke="url(#g3)" stroke-width="2" />
+            <path
+              d="M18 8C13.03 8 9 12.03 9 17c0 6.75 9 17 9 17s9-10.25 9-17c0-4.97-4.03-9-9-9zm0 12.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"
+              fill="url(#g4)"
+            />
+            <defs>
+              <linearGradient id="g3" x1="0" y1="0" x2="36" y2="36">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#0ea5e9" />
+              </linearGradient>
+              <linearGradient id="g4" x1="9" y1="8" x2="27" y2="34">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#7dd3fc" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="brand-name">FamilyTrack</span>
+        </div>
+
+        <h1>Crear cuenta</h1>
+        <p class="login-sub">Usá el mismo email que te dieron tus familiares</p>
+
+        <div id="reg-error" class="alert-error" style="display: none"></div>
+
+        <div class="form-group">
+          <label>Tu nombre</label>
+          <input
+            type="text"
+            id="inp-name"
+            placeholder="Ej: Manuel"
+            autocomplete="name"
+          />
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input
+            type="email"
+            id="inp-reg-email"
+            placeholder="tu@email.com"
+            autocomplete="email"
+          />
+        </div>
+        <div class="form-group">
+          <label>Contraseña</label>
+          <input
+            type="password"
+            id="inp-reg-pass"
+            placeholder="Mínimo 6 caracteres"
+            autocomplete="new-password"
+          />
+        </div>
+
+        <button class="btn-main" id="btn-register">Crear cuenta</button>
+        <button class="btn-ghost" id="btn-show-login">← Volver al login</button>
+      </div>
+    </div>
+
+    <!-- ── PANTALLA: APP PRINCIPAL ── -->
+    <div id="screen-app" class="screen">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-left">
+          <svg class="brand-icon-sm" viewBox="0 0 36 36" fill="none">
+            <circle
+              cx="18"
+              cy="18"
+              r="17"
+              stroke="url(#gh1)"
+              stroke-width="2"
+            />
+            <path
+              d="M18 8C13.03 8 9 12.03 9 17c0 6.75 9 17 9 17s9-10.25 9-17c0-4.97-4.03-9-9-9zm0 12.5a3.5 3.5 0 110-7 3.5 3.5 0 010 7z"
+              fill="url(#gh2)"
+            />
+            <defs>
+              <linearGradient id="gh1" x1="0" y1="0" x2="36" y2="36">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#0ea5e9" />
+              </linearGradient>
+              <linearGradient id="gh2" x1="9" y1="8" x2="27" y2="34">
+                <stop stop-color="#38bdf8" />
+                <stop offset="1" stop-color="#7dd3fc" />
+              </linearGradient>
+            </defs>
+          </svg>
+          <span class="header-title">FamilyTrack</span>
+        </div>
+        <div class="header-right">
+          <div class="user-chip" id="user-chip">
+            <span class="user-avatar" id="user-avatar-header"></span>
+            <span id="user-name-header"></span>
+          </div>
+          <button class="btn-icon" id="btn-logout" title="Cerrar sesión">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"
+              />
+            </svg>
+          </button>
+        </div>
+      </header>
+
+      <!-- Mapa -->
+      <div id="map"></div>
+
+      <!-- Panel inferior -->
+      <div class="bottom-panel" id="bottom-panel">
+        <!-- Mi estado -->
+        <div class="my-status">
+          <div class="status-left">
+            <div class="status-dot" id="my-status-dot"></div>
+            <div>
+              <div class="status-label">Mi ubicación</div>
+              <div class="status-sublabel" id="my-status-text">Inactiva</div>
+            </div>
+          </div>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="toggle-sharing" />
+            <span class="toggle-track">
+              <span class="toggle-thumb"></span>
+            </span>
+            <span class="toggle-label" id="toggle-label-text">Compartir</span>
+          </label>
+        </div>
+
+        <!-- Lista de familia -->
+        <div class="family-section">
+          <div class="section-header">
+            <span class="section-title">Familia</span>
+            <span class="online-badge" id="online-count">0 activos</span>
+          </div>
+          <div id="family-list" class="family-list">
+            <div class="empty-state">Cargando miembros...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <!-- Firebase SDK -->
+    <script type="module" src="assets/js/app.js"></script>
+  </body>
+</html>
