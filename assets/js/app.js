@@ -216,11 +216,12 @@ function stopTracking() {
     navigator.geolocation.clearWatch(watchId);
     watchId = undefined;
   }
-  removeMarker(currentUser?.uid);
-  document.getElementById("my-status-dot").classList.remove("active");
-  document.getElementById("my-status-text").textContent =
-    "Inactiva — no visible";
-  setSharing(false);
+  if (currentUser) removeMarker(currentUser.uid);
+  const dot = document.getElementById("my-status-dot");
+  const txt = document.getElementById("my-status-text");
+  if (dot) dot.classList.remove("active");
+  if (txt) txt.textContent = "Inactiva — no visible";
+  if (currentUser) setSharing(false);
 }
 
 async function initDeviceInfo() {
@@ -874,7 +875,7 @@ document.querySelectorAll(".tab-btn").forEach((btn) => {
     btn.classList.add("active");
     document.getElementById(tabId).classList.add("active");
     // Marcar mensajes como leídos al abrir la pestaña
-    if (tabId === "tab-messages") {
+    if (tabId === "tab-messages" && currentUser) {
       const q = query(
         collection(db, "messages"),
         where("toUid", "==", currentUser.uid),
