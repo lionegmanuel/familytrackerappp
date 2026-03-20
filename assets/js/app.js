@@ -1,11 +1,9 @@
 // firebase-config.js es generado en build time por generate-config.js
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
-  browserSessionPersistence,
   createUserWithEmailAndPassword,
   getAuth,
   onAuthStateChanged,
-  setPersistence,
   signInWithEmailAndPassword,
   signOut,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
@@ -30,7 +28,6 @@ import { firebaseConfig } from "./firebase-config.js";
 // ── Init ──
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
-await setPersistence(auth, browserSessionPersistence);
 const db = getFirestore(app);
 
 // ── Estado global ──
