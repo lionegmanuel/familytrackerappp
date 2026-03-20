@@ -1,6 +1,6 @@
 {
-  "name": "LocaTrack",
-  "short_name": "LocaTrack",
+  "name": "GPSafe",
+  "short_name": "GPSafe",
   "description": "Ubicación de dispositivos familiares y de confianza en tiempo real",
   "start_url": "/",
   "display": "standalone",

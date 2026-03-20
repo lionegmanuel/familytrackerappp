@@ -504,7 +504,7 @@ document
     const user = await getUserByEmail(email);
 
     if (!user) {
-      resultEl.textContent = `❌ No existe ningún usuario registrado con el email "${email}". Pedile que se registre primero en LocaTrack.`;
+      resultEl.textContent = `❌ No existe ningún usuario registrado con el email "${email}". Pedile que se registre primero en GPSafe.`;
       resultEl.className = "invite-result error";
       return;
     }
