@@ -1,7 +1,7 @@
 {
-  "name": "FamilyTrack",
-  "short_name": "FamilyTrack",
-  "description": "Ubicación familiar en tiempo real",
+  "name": "LocaTrack",
+  "short_name": "LocaTrack",
+  "description": "Ubicación de dispositivos familiares y de confianza en tiempo real",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#0a0e1a",
