@@ -483,5 +483,22 @@
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="../../assets/js/app.js"></script>
+    <script>
+      window.addEventListener("error", function (e) {
+        document.title = "ERR: " + e.message;
+        alert(
+          "Error: " +
+            e.message +
+            "\nArchivo: " +
+            e.filename +
+            "\nLínea: " +
+            e.lineno,
+        );
+      });
+      window.addEventListener("unhandledrejection", function (e) {
+        document.title = "PROMISE ERR";
+        alert("Promise error: " + e.reason);
+      });
+    </script>
   </body>
 </html>
