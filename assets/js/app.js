@@ -973,36 +973,55 @@ onAuthStateChanged(auth, async (user) => {
   }
 
   showLoading("Cargando tu cuenta...");
-  const profileSnap = await getDoc(doc(db, "users", user.uid));
-  const profile = profileSnap.data() || {};
-  const displayName = profile.displayName || user.email.split("@")[0];
-  currentUser = { ...user, _displayName: displayName };
 
-  // Header
-  document.getElementById("user-name-header").textContent = displayName;
-  const avEl = document.getElementById("user-avatar-header");
-  avEl.textContent = initials(displayName);
-  avEl.className = `user-avatar color-${getColor(user.uid).idx}`;
+  try {
+    const profileSnap = await getDoc(doc(db, "users", user.uid));
+    const profile = profileSnap.data() || {};
+    const displayName = profile.displayName || user.email.split("@")[0];
+    currentUser = { ...user, _displayName: displayName };
 
-  showScreen("screen-app");
-  initMap();
-  initDeviceInfo();
-  setTimeout(() => {
-    map.invalidateSize();
-  }, 100);
-  // Primero cargar grupos (setea myGroupMemberUids), luego escuchar miembros
-  //await renderGroups();
-  listenGroups();
-  listenGroupMembers();
-  listenInvitations();
-  listenMessages();
+    document.getElementById("user-name-header").textContent = displayName;
+    const avEl = document.getElementById("user-avatar-header");
+    avEl.textContent = initials(displayName);
+    avEl.className = `user-avatar color-${getColor(user.uid).idx}`;
 
-  if (profile.sharing) {
-    document.getElementById("toggle-sharing").checked = true;
-    startTracking();
+    showScreen("screen-app");
+    initMap();
+    initDeviceInfo();
+    setTimeout(() => map.invalidateSize(), 100);
+
+    // Cada listener en su propio try para no romper los demás
+    try {
+      listenGroups();
+    } catch (e) {
+      console.error("listenGroups:", e);
+    }
+    try {
+      listenGroupMembers();
+    } catch (e) {
+      console.error("listenGroupMembers:", e);
+    }
+    try {
+      listenInvitations();
+    } catch (e) {
+      console.error("listenInvitations:", e);
+    }
+    try {
+      listenMessages();
+    } catch (e) {
+      console.error("listenMessages:", e);
+    }
+
+    if (profile.sharing) {
+      document.getElementById("toggle-sharing").checked = true;
+      startTracking();
+    }
+  } catch (e) {
+    console.error("Error inicializando app:", e);
+    showToast("⚠️ Error al cargar. Intentá de nuevo.");
+  } finally {
+    hideLoading();
   }
-
-  hideLoading();
 });
 
 // ══════════════════════════════════════════════
