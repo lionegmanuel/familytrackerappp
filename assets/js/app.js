@@ -1,6 +1,5 @@
 // firebase-config.js es generado en build time por generate-config.js
-import { firebaseConfig } from "../js/firebase-config.js";
-
+import { firebaseConfig } from "./firebase-config.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   createUserWithEmailAndPassword,

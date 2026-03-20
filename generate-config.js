@@ -33,7 +33,8 @@ export const firebaseConfig = {
 };
 `;
 
-fs.writeFileSync("firebase-config.js", config);
+fs.mkdirSync("assets/js", { recursive: true });
+fs.writeFileSync("assets/js/firebase-config.js", config);
 console.log(
-  "✅ firebase-config.js generado correctamente desde variables de entorno.",
+  "✅ assets/js/firebase-config.js generado correctamente desde variables de entorno.",
 );
