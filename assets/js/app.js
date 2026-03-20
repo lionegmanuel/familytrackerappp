@@ -481,6 +481,7 @@ window.leaveGroup = async function (groupId) {
 document
   .getElementById("btn-search-user")
   .addEventListener("click", async () => {
+    if (!currentUser) return;
     const email = document.getElementById("inp-invite-email").value.trim();
     const resultEl = document.getElementById("invite-result");
     const confirmEl = document.getElementById("invite-confirm");
@@ -554,7 +555,7 @@ document
 document
   .getElementById("btn-confirm-invite")
   .addEventListener("click", async () => {
-    if (!foundUserForInvite || !currentInviteGroupId) return;
+    if (!currentUser || !foundUserForInvite || !currentInviteGroupId) return;
     const groupSnap = await getDoc(doc(db, "groups", currentInviteGroupId));
     const groupName = groupSnap.data()?.name || "Grupo";
 
@@ -669,7 +670,6 @@ window.rejectInvitation = async function (invId) {
 document
   .getElementById("btn-open-invitations")
   .addEventListener("click", () => openModal("modal-invitations"));
-
 // ══════════════════════════════════════════════
 //  PANEL MAPA — render miembros del grupo
 // ══════════════════════════════════════════════
@@ -817,17 +817,16 @@ async function markMessagesRead(docs) {
 document
   .getElementById("btn-mark-all-read")
   .addEventListener("click", async () => {
+    if (!currentUser) return;
     const q = query(
       collection(db, "messages"),
       where("toUid", "==", currentUser.uid),
       where("read", "==", false),
     );
-    const snap = await getDocs(q);
-    for (const d of snap.docs) await updateDoc(d.ref, { read: true });
-    showToast("Todo marcado como leído");
   });
 
 async function sendMessage(type) {
+  if (!currentUser) return;
   const toUid = document.getElementById("msg-recipient").value;
   const text = document.getElementById("msg-text").value.trim();
   if (!toUid) {
@@ -962,6 +961,7 @@ document
   .addEventListener("click", () => showScreen("screen-login"));
 
 document.getElementById("toggle-sharing").addEventListener("change", (e) => {
+  if (!currentUser) return;
   if (e.target.checked) startTracking();
   else stopTracking();
 });
