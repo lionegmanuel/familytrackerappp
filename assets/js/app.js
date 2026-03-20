@@ -1,5 +1,5 @@
 // firebase-config.js es generado en build time por generate-config.js
-import { firebaseConfig } from "./firebase-config.js";
+import { browserSessionPersistence, setPersistence } from "...firebase-auth.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
 import {
   createUserWithEmailAndPassword,
@@ -24,10 +24,12 @@ import {
   updateDoc,
   where,
 } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+import { firebaseConfig } from "./firebase-config.js";
 
 // ── Init ──
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
+await setPersistence(auth, browserSessionPersistence);
 const db = getFirestore(app);
 
 // ── Estado global ──
@@ -987,7 +989,9 @@ onAuthStateChanged(auth, async (user) => {
   showScreen("screen-app");
   initMap();
   initDeviceInfo();
-
+  setTimeout(() => {
+    map.invalidateSize();
+  }, 100);
   // Primero cargar grupos (setea myGroupMemberUids), luego escuchar miembros
   //await renderGroups();
   listenGroups();
