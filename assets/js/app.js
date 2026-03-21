@@ -965,14 +965,24 @@ document.getElementById("toggle-sharing").addEventListener("change", (e) => {
   if (e.target.checked) startTracking();
   else stopTracking();
 });
-
+let authResolved = false;
+const authTimeout = setTimeout(() => {
+  if (!authResolved) {
+    console.warn(
+      "⚠️ Firebase Auth no respondió en 8s — mostrando login por seguridad.",
+    );
+    hideLoading();
+    showScreen("screen-login");
+  }
+}, 8000);
 onAuthStateChanged(auth, async (user) => {
+  authResolved = true;
+  clearTimeout(authTimeout);
   if (!user) {
     hideLoading();
     showScreen("screen-login");
     return;
   }
-
   showLoading("Cargando tu cuenta...");
 
   try {
@@ -980,12 +990,21 @@ onAuthStateChanged(auth, async (user) => {
     await user.getIdToken(true);
   } catch (tokenError) {
     console.warn("Token inválido, cerrando sesión:", tokenError);
-    await signOut(auth);
+    // signOut también puede fallar (ej: dominio no autorizado en Firebase)
+    // Se envuelve en su propio try/catch para garantizar que SIEMPRE
+    // se llame a hideLoading() y showScreen(), sin importar qué pase.
+    try {
+      await signOut(auth);
+    } catch (signOutError) {
+      console.warn(
+        "signOut falló durante recuperación de token:",
+        signOutError,
+      );
+    }
     hideLoading();
     showScreen("screen-login");
     return;
   }
-
   try {
     const profileSnap = await getDoc(doc(db, "users", user.uid));
     const profile = profileSnap.data() || {};
