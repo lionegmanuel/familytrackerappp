@@ -976,6 +976,17 @@ onAuthStateChanged(auth, async (user) => {
   showLoading("Cargando tu cuenta...");
 
   try {
+    // Forzar refresh del token — si está expirado o es inválido, falla acá
+    await user.getIdToken(true);
+  } catch (tokenError) {
+    console.warn("Token inválido, cerrando sesión:", tokenError);
+    await signOut(auth);
+    hideLoading();
+    showScreen("screen-login");
+    return;
+  }
+
+  try {
     const profileSnap = await getDoc(doc(db, "users", user.uid));
     const profile = profileSnap.data() || {};
     const displayName = profile.displayName || user.email.split("@")[0];
