@@ -588,23 +588,37 @@ document
       return;
     }
 
-    const groupRef = await addDoc(collection(db, "groups"), {
-      name,
-      ownerId: currentUser.uid,
-      createdAt: serverTimestamp(),
-    });
+    // Verificar nombre duplicado — evita que el mismo usuario cree
+    // dos grupos con el mismo nombre por doble click o submit repetido.
+    const existingQ = query(
+      collection(db, "groups"),
+      where("ownerId", "==", currentUser.uid),
+      where("name", "==", name),
+    );
+    const existingSnap = await getDocs(existingQ);
+    if (!existingSnap.empty) {
+      showToast(`⚠️ Ya tenés un grupo llamado "${name}"`);
+      return;
+    }
 
-    // El owner también queda como miembro aceptado automáticamente
-    /*await addDoc(collection(db, "groupMembers"), {
-      groupId: groupRef.id,
-      uid: currentUser.uid,
-      displayName: currentUser._displayName,
-      status: "accepted",
-      joinedAt: serverTimestamp(),
-    });
-*/
-    showToast(`✅ Grupo "${name}" creado`);
-    closeModal("modal-group");
+    // Deshabilitar botón durante la creación para evitar doble submit
+    const btn = document.getElementById("btn-save-group");
+    btn.disabled = true;
+
+    try {
+      await addDoc(collection(db, "groups"), {
+        name,
+        ownerId: currentUser.uid,
+        createdAt: serverTimestamp(),
+      });
+      showToast(`✅ Grupo "${name}" creado`);
+      closeModal("modal-group");
+    } catch (e) {
+      console.error("Error creando grupo:", e);
+      showToast("⚠️ Error al crear el grupo. Intentá de nuevo.");
+    } finally {
+      btn.disabled = false;
+    }
   });
 
 // ══════════════════════════════════════════════

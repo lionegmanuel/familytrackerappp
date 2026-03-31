@@ -1221,12 +1221,14 @@ body {
     max-width: 100%;
   }
 }
-/* Desktop: panel más chico, más mapa visible */
+
+/* Desktop mediano */
 @media (min-width: 769px) {
   :root {
     --panel-h: 38vh;
   }
 }
+
 @media (min-width: 1024px) {
   .tab-panel {
     justify-content: center;
