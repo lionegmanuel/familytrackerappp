@@ -484,20 +484,13 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script type="module" src="/assets/js/app.js"></script>
     <script>
+      // Error handler de producción — sin alert() para no bloquear la UI.
+      // Los errores se loguean en console para poder inspeccionarlos en DevTools.
       window.addEventListener("error", function (e) {
-        document.title = "ERR: " + e.message;
-        alert(
-          "Error: " +
-            e.message +
-            "\nArchivo: " +
-            e.filename +
-            "\nLínea: " +
-            e.lineno,
-        );
+        console.error("[GPSafe] JS Error:", e.message, "| Archivo:", e.filename, "| Línea:", e.lineno);
       });
       window.addEventListener("unhandledrejection", function (e) {
-        document.title = "PROMISE ERR";
-        alert("Promise error: " + e.reason);
+        console.error("[GPSafe] Promise rechazada:", e.reason);
       });
     </script>
   </body>

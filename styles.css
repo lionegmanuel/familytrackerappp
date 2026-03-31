@@ -308,7 +308,9 @@ body {
 #screen-app {
   background: var(--bg);
   height: 100dvh;
-  display: flex;
+  /* display es controlado por .screen / .screen.active — NO definir aqui */
+  /* Si se define display:flex con ID specificity, gana sobre .screen{display:none} */
+  /* y la pantalla de app queda siempre visible, tapando el login. */
   flex-direction: column;
   overflow: hidden;
 }

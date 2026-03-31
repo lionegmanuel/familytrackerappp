@@ -965,24 +965,30 @@ document.getElementById("toggle-sharing").addEventListener("change", (e) => {
   if (e.target.checked) startTracking();
   else stopTracking();
 });
+
+// ── Timeout de seguridad ──
+// Si onAuthStateChanged nunca dispara (dominio no autorizado, red caída,
+// config inválida), el loading overlay quedaría activo para siempre.
+// Este timeout garantiza que después de 8s el usuario SIEMPRE ve algo.
 let authResolved = false;
 const authTimeout = setTimeout(() => {
   if (!authResolved) {
-    console.warn(
-      "⚠️ Firebase Auth no respondió en 8s — mostrando login por seguridad.",
-    );
+    console.warn("⚠️ Firebase Auth no respondió en 8s — mostrando login por seguridad.");
     hideLoading();
     showScreen("screen-login");
   }
 }, 8000);
+
 onAuthStateChanged(auth, async (user) => {
   authResolved = true;
   clearTimeout(authTimeout);
+
   if (!user) {
     hideLoading();
     showScreen("screen-login");
     return;
   }
+
   showLoading("Cargando tu cuenta...");
 
   try {
@@ -993,18 +999,14 @@ onAuthStateChanged(auth, async (user) => {
     // signOut también puede fallar (ej: dominio no autorizado en Firebase)
     // Se envuelve en su propio try/catch para garantizar que SIEMPRE
     // se llame a hideLoading() y showScreen(), sin importar qué pase.
-    try {
-      await signOut(auth);
-    } catch (signOutError) {
-      console.warn(
-        "signOut falló durante recuperación de token:",
-        signOutError,
-      );
+    try { await signOut(auth); } catch (signOutError) {
+      console.warn("signOut falló durante recuperación de token:", signOutError);
     }
     hideLoading();
     showScreen("screen-login");
     return;
   }
+
   try {
     const profileSnap = await getDoc(doc(db, "users", user.uid));
     const profile = profileSnap.data() || {};
@@ -1050,6 +1052,10 @@ onAuthStateChanged(auth, async (user) => {
   } catch (e) {
     console.error("Error inicializando app:", e);
     showToast("⚠️ Error al cargar. Intentá de nuevo.");
+    // Si la inicialización principal falla, el estado de la app es indeterminado.
+    // Forzar logout y redirigir al login para que el usuario pueda reintentar limpiamente.
+    try { await signOut(auth); } catch (_) {}
+    showScreen("screen-login");
   } finally {
     hideLoading();
   }
