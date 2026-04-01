@@ -31,7 +31,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // ── Estado global ──
-let map, currentUser, watchId;
+let map, currentUser, watchId, heartbeatId;
 const markers = {};
 const colors = [
   "#38bdf8",
@@ -85,6 +85,18 @@ function timeAgo(ts) {
   if (sec < 60) return `Hace ${sec}s`;
   if (sec < 3600) return `Hace ${Math.floor(sec / 60)}min`;
   return `Hace ${Math.floor(sec / 3600)}h`;
+}
+
+// Devuelve clase CSS según la frescura del lastSeen:
+// "fresh"  = menos de 1 min  → verde brillante (en vivo)
+// "recent" = 1-10 min        → amarillo        (reciente)
+// "stale"  = más de 10 min   → rojo            (viejo)
+function freshnessClass(ts) {
+  if (!ts) return "stale";
+  const min = (Date.now() - ts.toMillis()) / 60000;
+  if (min < 1)  return "fresh";
+  if (min < 10) return "recent";
+  return "stale";
 }
 
 function initials(name) {
@@ -193,6 +205,8 @@ function startTracking() {
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+      lastLat = lat;
+      lastLng = lng;
       lastGpsAccuracy = accuracy;
       document.getElementById("dev-gps").textContent = accuracy
         ? `±${Math.round(accuracy)}m`
@@ -203,7 +217,11 @@ function startTracking() {
       console.warn("GPS:", err);
       showToast("⚠️ No se pudo obtener la ubicación");
     },
-    { enableHighAccuracy: true, maximumAge: 10000 },
+    {
+      enableHighAccuracy: true,
+      maximumAge: 5000,   // max 5s de caché GPS (antes 10s)
+      timeout: 15000,     // forzar nuevo fix cada 15s aunque no haya movimiento
+    },
   );
   document.getElementById("my-status-dot").classList.add("active");
   document.getElementById("my-status-text").textContent =
@@ -212,6 +230,10 @@ function startTracking() {
 }
 
 function stopTracking() {
+  if (heartbeatId !== undefined) {
+    clearInterval(heartbeatId);
+    heartbeatId = undefined;
+  }
   if (watchId !== undefined) {
     navigator.geolocation.clearWatch(watchId);
     watchId = undefined;
@@ -225,33 +247,41 @@ function stopTracking() {
 }
 
 async function initDeviceInfo() {
-  // Batería
-  if ("getBattery" in navigator) {
-    const bat = await navigator.getBattery();
-    function updateBattery() {
-      const pct = Math.round(bat.level * 100);
-      document.getElementById("dev-battery").textContent = pct + "%";
-      const fill = document.getElementById("battery-fill");
-      fill.style.width = pct + "%";
-      fill.className =
-        "battery-fill" + (pct <= 15 ? " crit" : pct <= 30 ? " warn" : "");
-      document.getElementById("dev-battery").style.color =
-        pct <= 15
-          ? "var(--red)"
-          : pct <= 30
-            ? "var(--orange)"
-            : "var(--accent)";
-      // Actualizar en Firestore
-      if (currentUser)
-        updateDoc(doc(db, "users", currentUser.uid), { battery: pct }).catch(
-          () => {},
-        );
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if ("getBattery" in navigator && !isIOS) {
+    try {
+      const bat = await navigator.getBattery();
+      function updateBattery() {
+        // Si el nivel es exactamente 1 y no está cargando, probablemente
+        // el browser no tiene acceso real al hardware — marcar como N/D.
+        if (bat.level === 1 && !bat.charging) {
+          document.getElementById("dev-battery").textContent = "N/D";
+          document.getElementById("battery-fill").style.width = "0%";
+          return;
+        }
+        const pct = Math.round(bat.level * 100);
+        document.getElementById("dev-battery").textContent = pct + "%";
+        const fill = document.getElementById("battery-fill");
+        fill.style.width = pct + "%";
+        fill.className =
+          "battery-fill" + (pct <= 15 ? " crit" : pct <= 30 ? " warn" : "");
+        document.getElementById("dev-battery").style.color =
+          pct <= 15 ? "var(--red)" : pct <= 30 ? "var(--orange)" : "var(--accent)";
+        if (currentUser)
+          updateDoc(doc(db, "users", currentUser.uid), { battery: pct }).catch(() => {});
+      }
+      updateBattery();
+      bat.addEventListener("levelchange", updateBattery);
+      bat.addEventListener("chargingchange", updateBattery);
+      // Refresco periódico — algunos browsers no disparan el evento levelchange
+      setInterval(updateBattery, 60000);
+    } catch (e) {
+      document.getElementById("dev-battery").textContent = "N/D";
     }
-    updateBattery();
-    bat.addEventListener("levelchange", updateBattery);
-    bat.addEventListener("chargingchange", updateBattery);
+  } else {
+    document.getElementById("dev-battery").textContent = "N/D";
+    document.getElementById("dev-battery").style.color = "var(--muted)";
   }
-
   // Red
   const conn =
     navigator.connection ||
@@ -259,20 +289,36 @@ async function initDeviceInfo() {
     navigator.webkitConnection;
   function updateNetwork() {
     if (!conn) {
-      document.getElementById("dev-network").textContent = navigator.onLine
-        ? "Online"
-        : "Offline";
-      document.getElementById("dev-net-icon").textContent = navigator.onLine
-        ? "📶"
-        : "❌";
+      const online = navigator.onLine;
+      document.getElementById("dev-network").textContent = online ? "Online" : "Offline";
+      document.getElementById("dev-net-icon").textContent = online ? "📶" : "❌";
       return;
     }
-    const type = conn.effectiveType || conn.type || "desconocido";
+    // conn.type → medio físico: "wifi", "cellular", "ethernet", "none", "other", "unknown"
+    // conn.effectiveType → calidad: "slow-2g", "2g", "3g", "4g" (no indica WiFi)
+    const medium = conn.type || "";          // medio real si está disponible
+    const quality = conn.effectiveType || ""; // calidad de señal
     const down = conn.downlink ? ` · ${conn.downlink}Mbps` : "";
-    document.getElementById("dev-network").textContent = type.toUpperCase();
+
+    let label, icon;
+    if (medium === "wifi" || medium === "ethernet") {
+      label = medium === "wifi" ? "WiFi" : "Ethernet";
+      icon = "📶";
+    } else if (medium === "cellular") {
+      label = quality.toUpperCase() || "Móvil";
+      icon = "📡";
+    } else if (medium === "none" || !navigator.onLine) {
+      label = "Sin conexión";
+      icon = "❌";
+    } else {
+      // Fallback: sin conn.type, usar effectiveType como antes
+      label = quality.toUpperCase() || "Online";
+      icon = quality === "4g" ? "📶" : "🔶";
+    }
+
+    document.getElementById("dev-network").textContent = label;
     document.getElementById("dev-network-sub").textContent = down;
-    document.getElementById("dev-net-icon").textContent =
-      type.includes("4g") || type.includes("wifi") ? "📶" : "🔶";
+    document.getElementById("dev-net-icon").textContent = icon;
   }
   updateNetwork();
   if (conn) conn.addEventListener("change", updateNetwork);
@@ -438,6 +484,14 @@ async function renderGroups() {
 
   renderFamilyList(allMembers);
   updateMsgRecipients(allMembers);
+
+  // Fix race condition: myGroupMemberUids acaba de actualizarse.
+  // Si el snapshot de usuarios ya llegó (listenGroupMembers ya disparó),
+  // reprocesarlo ahora para mostrar los miembros correctamente sin
+  // esperar un nuevo evento de Firestore.
+  if (lastUsersSnap) {
+    processUsersSnap(lastUsersSnap);
+  }
 }
 
 window.openInviteModal = function (groupId, groupName) {
@@ -563,6 +617,7 @@ document
       fromUid: currentUser.uid,
       fromName: currentUser._displayName,
       toUid: foundUserForInvite.uid,
+      toName: foundUserForInvite.displayName,
       groupId: currentInviteGroupId,
       groupName,
       status: "pending",
@@ -639,7 +694,30 @@ function listenInvitations() {
   });
   unsubListeners.push(unsub);
 }
-
+function listenSentInvitationResponses() {
+  // Escucha invitaciones ENVIADAS por el usuario actual que cambian a
+  // "accepted" o "rejected" — notifica al remitente del resultado.
+  const q = query(
+    collection(db, "invitations"),
+    where("fromUid", "==", currentUser.uid),
+    where("status", "in", ["accepted", "rejected"]),
+  );
+  // Guardamos los IDs ya vistos para no re-notificar en cada snapshot
+  const seen = new Set();
+  const unsub = onSnapshot(q, (snap) => {
+    snap.docs.forEach((d) => {
+      if (seen.has(d.id)) return;
+      seen.add(d.id);
+      const inv = d.data();
+      if (inv.status === "accepted") {
+        showToast(`✅ ${inv.toName || "Un usuario"} aceptó unirse a "${inv.groupName}"`);
+      } else if (inv.status === "rejected") {
+        showToast(`❌ ${inv.toName || "Un usuario"} rechazó la invitación a "${inv.groupName}"`);
+      }
+    });
+  });
+  unsubListeners.push(unsub);
+}
 function renderInvitationsList(invDocs) {
   const list = document.getElementById("invitations-list");
   if (!invDocs.length) {
@@ -687,38 +765,53 @@ document
 // ══════════════════════════════════════════════
 //  PANEL MAPA — render miembros del grupo
 // ══════════════════════════════════════════════
+// Cache del último snapshot de usuarios — permite refrescar la vista
+// cuando myGroupMemberUids cambia sin esperar un nuevo evento de Firestore.
+let lastUsersSnap = null;
+
+function processUsersSnap(snap) {
+  // Aplica el filtro de visibilidad sobre un snapshot de la colección users.
+  // Se llama tanto desde el listener en tiempo real como desde renderGroups()
+  // para resolver la race condition: myGroupMemberUids puede estar vacío
+  // cuando el primer snapshot llega, antes de que renderGroups() termine.
+  let online = 0;
+  const visibleMembers = [];
+
+  snap.forEach((d) => {
+    const uid = d.id;
+    const data = d.data();
+    if (!data.displayName) return;
+
+    const isMe = uid === currentUser.uid;
+    const isVisible = isMe || myGroupMemberUids.has(uid);
+    if (!isVisible) return;
+
+    const isOnline = data.sharing && data.lat && data.lng;
+    if (isOnline) online++;
+
+    if (isOnline && !isMe) upsertMarker(uid, data);
+    else if (!isOnline && !isMe) removeMarker(uid);
+
+    visibleMembers.push({ uid, data, isMe });
+  });
+
+  // Limpiar marcadores de miembros que ya no están en el grupo
+  Object.keys(markers).forEach((uid) => {
+    if (!myGroupMemberUids.has(uid)) removeMarker(uid);
+  });
+
+  document.getElementById("online-count").textContent =
+    `${online} activo${online !== 1 ? "s" : ""}`;
+  renderFamilyListFromData(visibleMembers);
+}
+
 function listenGroupMembers() {
-  // Escuchar cambios en tiempo real de usuarios visibles
+  // Escuchar cambios en tiempo real de usuarios visibles.
+  // Guarda el snapshot en lastUsersSnap para poder reprocesarlo
+  // cuando myGroupMemberUids se actualice en renderGroups().
   const unsub = onSnapshot(collection(db, "users"), (snap) => {
-    let online = 0;
-    const visibleMembers = [];
-
-    snap.forEach((d) => {
-      const uid = d.id;
-      const data = d.data();
-      if (!data.displayName) return;
-
-      const isMe = uid === currentUser.uid;
-      const isVisible = isMe || myGroupMemberUids.has(uid);
-      if (!isVisible) return;
-
-      const isOnline = data.sharing && data.lat && data.lng;
-      if (isOnline) online++;
-
-      if (isOnline && !isMe) upsertMarker(uid, data);
-      else if (!isOnline && !isMe) removeMarker(uid);
-
-      visibleMembers.push({ uid, data, isMe });
-    });
-
-    // Limpiar marcadores de miembros que ya no están en el grupo
-    Object.keys(markers).forEach((uid) => {
-      if (!myGroupMemberUids.has(uid)) removeMarker(uid);
-    });
-
-    document.getElementById("online-count").textContent =
-      `${online} activo${online !== 1 ? "s" : ""}`;
-    renderFamilyListFromData(visibleMembers);
+    lastUsersSnap = snap;
+    processUsersSnap(snap);
   });
   unsubListeners.push(unsub);
 }
@@ -748,7 +841,7 @@ function renderFamilyListFromData(members) {
               ${batteryHtml}
             </div>
           </div>
-          <div class="member-status-dot ${isOnline ? "on" : "off"}"></div>
+          <div class="member-status-dot ${isOnline ? "on " + freshnessClass(data.lastSeen) : "off"}" title="${isOnline ? timeAgo(data.lastSeen) : "Sin ubicación"}"></div>
           ${isOnline && !isMe ? `<button class="member-locate-btn" onclick="event.stopPropagation();flyToMember('${uid}')">Ver</button>` : ""}
         </div>`;
     })
@@ -1052,6 +1145,12 @@ onAuthStateChanged(auth, async (user) => {
       listenInvitations();
     } catch (e) {
       console.error("listenInvitations:", e);
+    }
+    try {
+      listenSentInvitationResponses();
+    }
+    catch (e) {
+      console.error("listenSentInvitationResponses:", e);
     }
     try {
       listenMessages();

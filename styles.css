@@ -209,6 +209,18 @@ body {
     border-color 0.2s,
     box-shadow 0.2s;
 }
+.select-input option,
+.form-group-sm select option {
+  background: #0d1525;
+  color: #e2e8f0;
+}
+.select-input option:hover,
+.form-group-sm select option:hover,
+.select-input option:checked,
+.form-group-sm select option:checked {
+  background: #1e3a5f;
+  color: #38bdf8;
+}
 .form-group input:focus,
 .select-input:focus {
   border-color: rgba(56, 189, 248, 0.45);
@@ -702,12 +714,28 @@ body {
   border-radius: 50%;
   flex-shrink: 0;
 }
-.member-status-dot.on {
+/* fresh  = en vivo (<1min)  → verde  */
+.member-status-dot.on.fresh {
   background: var(--green);
-  box-shadow: 0 0 5px rgba(34, 197, 94, 0.5);
+  box-shadow: 0 0 6px rgba(34, 197, 94, 0.7);
+  animation: pulse-dot 2s infinite;
+}
+/* recent = reciente (1-10min) → amarillo */
+.member-status-dot.on.recent {
+  background: #facc15;
+  box-shadow: 0 0 5px rgba(250, 204, 21, 0.5);
+}
+/* stale  = viejo (>10min) → rojo */
+.member-status-dot.on.stale {
+  background: var(--red);
+  box-shadow: 0 0 5px rgba(239, 68, 68, 0.4);
 }
 .member-status-dot.off {
   background: #334155;
+}
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.5; }
 }
 .member-locate-btn {
   background: rgba(56, 189, 248, 0.1);
