@@ -202,6 +202,10 @@ function startTracking() {
     return;
   }
   stopTracking();
+  navigator.geolocation.getCurrentPosition((pos) => updateMyLocation(pos.coords.latitude, pos.coords.longitude),
+    () => {}, // silencioso — watchPosition mostrará el error si persiste
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+  );
   watchId = navigator.geolocation.watchPosition(
     (pos) => {
       const { latitude: lat, longitude: lng, accuracy } = pos.coords;
@@ -214,8 +218,17 @@ function startTracking() {
       updateMyLocation(lat, lng);
     },
     (err) => {
-      console.warn("GPS:", err);
-      showToast("⚠️ No se pudo obtener la ubicación");
+      console.warn("GPS:", err.code, err.message);
+      if (err.code === 1) {
+        // PERMISSION_DENIED
+        showToast("⚠️ Permiso de ubicación denegado. Habilitalo en Configuración del navegador.");
+      } else if (err.code === 2) {
+        // POSITION_UNAVAILABLE
+        showToast("⚠️ No se pudo obtener ubicación. Chequeá que el GPS esté activado.");
+      } else if (err.code === 3) {
+        // TIMEOUT — muy común en interiores con enableHighAccuracy:true
+        showToast("⚠️ Tiempo de espera GPS agotado. Intentá al aire libre o desactivá GPS preciso.");
+      }
     },
     {
       enableHighAccuracy: true,
